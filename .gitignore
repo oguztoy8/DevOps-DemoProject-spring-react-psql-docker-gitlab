@@ -1,0 +1,17 @@
+# Node.js (Frontend)
+node_modules/
+build/
+dist/
+.env
+
+
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+env/
+
+
+Thumbs.db
+.DS_Store
