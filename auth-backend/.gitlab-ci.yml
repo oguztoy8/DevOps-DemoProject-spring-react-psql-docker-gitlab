@@ -1,0 +1,39 @@
+stages:
+  - deploy
+
+deploy_backend:
+  stage: deploy
+  image: ubuntu:latest
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > private_key.pem
+    - chmod 600 private_key.pem
+    - ssh-add private_key.pem
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+
+  script:
+    - echo "Spring Boot Backend deploy ediliyor..."
+    # Pipe (|) isareti, asagidaki blogun tek bir metin oldugunu soyler. Tirnak hatasi olmaz.
+    - |
+      ssh ubuntu@$SERVER_IP "
+        set -e
+        # 1. Temizlik
+        sudo docker stop auth-backend || true
+        sudo docker rm auth-backend || true
+        rm -rf auth-backend
+        
+        # 2. Kodu Cek (Kullanici adi: oguztoy olarak guncellendi)
+        git clone https://$DEPLOY_USER:$DEPLOY_PASS@gitlab.com/oguztoy/auth-backend.git
+        cd auth-backend
+        
+        
+        sudo docker build -t auth-backend-image .
+        
+        # 4. Calistir
+        # --network: auth-infra projesinde kurdugumuz ag
+        # port: 8081
+        sudo docker run -d -p 8081:8080 --name auth-backend --network auth-infra_auth-network auth-backend-image
+      "

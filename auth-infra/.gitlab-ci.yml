@@ -1,0 +1,33 @@
+stages:
+  - deploy
+
+deploy_infra:
+  stage: deploy
+  image: ubuntu:latest
+  before_script:
+    # SSH Client kurulumu ve Key Ayarları (Burası aynı)
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > private_key.pem
+    - chmod 600 private_key.pem
+    - ssh-add private_key.pem
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+
+  script:
+    - echo "Altyapi (Veritabani) deploy ediliyor..."
+    
+    # 1. Sunucuda klasörü oluştur (yoksa)
+    - ssh ubuntu@$SERVER_IP "mkdir -p auth-infra"
+    
+    # 2. DOSYA KOPYALAMA: Repodaki docker-compose.yml dosyasını sunucuya at
+    # (Bu yöntem echo ile yazmaktan çok daha güvenlidir)
+    - scp docker-compose.yml ubuntu@$SERVER_IP:~/auth-infra/docker-compose.yml
+    
+    # 3. Sunucuda Docker Compose'u çalıştır
+    - ssh ubuntu@$SERVER_IP "
+        cd auth-infra;
+        sudo docker-compose down || true; 
+        sudo docker-compose up -d db;
+      "
